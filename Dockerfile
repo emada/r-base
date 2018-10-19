@@ -1,8 +1,16 @@
 ## largely based on rocker r-base image
 
-FROM ubuntu:16.04
+FROM ubuntu:18.04
 
 MAINTAINER "Tobias Verbeke" tobias.verbeke@openanalytics.eu
+# Updated to Ubuntu 18.04 and R 3.5.1 by
+# Emerson Lopes Machado <emerson@pavilion-health.com>
+
+# Please change the timezone data accordingly
+ENV DEBIAN_FRONTEND noninteractive DEBCONF_NONINTERACTIVE_SEEN=true
+RUN echo "tzdata tzdata/Areas select Australia" > /tmp/tz_preseed.txt \
+		&& echo "tzdata tzdata/Zones/Australia select Sydney" >> /tmp/tz_preseed.txt
+RUN debconf-set-selections /tmp/tz_preseed.txt
 
 ## Add user to 'staff' group, granting them write privileges to /usr/local/lib/R/site.library
 RUN useradd docker \
@@ -10,7 +18,7 @@ RUN useradd docker \
 	&& chown docker:docker /home/docker \
 	&& addgroup docker staff
 
-RUN apt-get update \ 
+RUN apt-get update \
 	&& apt-get install -y --no-install-recommends \
 		ed \
 		less \
@@ -20,6 +28,7 @@ RUN apt-get update \
 		ca-certificates \
 		apt-transport-https \
 		gsfonts \
+		gnupg2 \
 	&& rm -rf /var/lib/apt/lists/*
 
 ## Configure default locale, see https://github.com/rocker-org/rocker/issues/19
@@ -31,22 +40,22 @@ ENV LC_ALL en_US.UTF-8
 ENV LANG en_US.UTF-8
 
 ## Use Debian unstable via pinning -- new style via APT::Default-Release
-RUN echo "deb https://cloud.r-project.org/bin/linux/ubuntu xenial/" > /etc/apt/sources.list.d/cran.list
+RUN echo "deb https://cloud.r-project.org/bin/linux/ubuntu bionic-cran35/" > /etc/apt/sources.list.d/cran.list
 RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E084DAB9
 
-ENV R_BASE_VERSION 3.4.4
+ENV R_BASE_VERSION 3.5.1
 
 ## Now install R and littler, and create a link for littler in /usr/local/bin
 ## Also set a default CRAN repo, and make sure littler knows about it too
 RUN apt-get update \
 	&& apt-get install -y --no-install-recommends \
 		littler\
-                r-cran-littler \
+		r-cran-littler \
 		r-base=${R_BASE_VERSION}* \
 		r-base-dev=${R_BASE_VERSION}* \
 		r-recommended=${R_BASE_VERSION}* \
-        && echo 'options(repos = c(CRAN = "https://cloud.r-project.org/"), download.file.method = "libcurl")' >> /etc/R/Rprofile.site \
-        && echo 'source("/etc/R/Rprofile.site")' >> /etc/littler.r \
+	&& echo 'options(repos = c(CRAN = "https://cloud.r-project.org/"), download.file.method = "libcurl")' >> /etc/R/Rprofile.site \
+	&& echo 'source("/etc/R/Rprofile.site")' >> /etc/littler.r \
 	&& ln -s /usr/share/doc/littler/examples/install.r /usr/local/bin/install.r \
 	&& ln -s /usr/share/doc/littler/examples/install2.r /usr/local/bin/install2.r \
 	&& ln -s /usr/share/doc/littler/examples/installGithub.r /usr/local/bin/installGithub.r \
